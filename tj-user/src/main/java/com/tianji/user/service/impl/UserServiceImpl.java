@@ -260,6 +260,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             throw new ForbiddenException(USER_FROZEN);
         }
         // 4.校验密码
+        //TODO SpringSecurity
         if (!passwordEncoder.matches(loginDTO.getPassword(), user.getPassword())) {
             throw new BadRequestException(INVALID_UN_OR_PW);
         }
