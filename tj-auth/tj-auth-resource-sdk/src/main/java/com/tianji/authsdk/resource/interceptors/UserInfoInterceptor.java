@@ -8,6 +8,11 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+/**
+ * 用于记录用户ID的拦截器。
+ * 已被com.tianji.authsdk.resource.config.ResourceInterceptorConfiguration注册。
+ * 引用该模块（sdk）将自动注册这个拦截器。
+ */
 @Slf4j
 public class UserInfoInterceptor implements HandlerInterceptor {
 

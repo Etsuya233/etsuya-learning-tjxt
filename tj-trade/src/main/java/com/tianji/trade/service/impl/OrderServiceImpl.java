@@ -278,7 +278,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         // 2.查询订单
         Order order = getById(id);
         if (order == null) {
-            return;
+            throw new BadRequestException("订单不存在");
         }
         // 3.判断订单所属用户与当前登录用户是否一致
         if(!userId.equals(order.getUserId())){

@@ -46,10 +46,11 @@ public class AccountAuthFilter implements GlobalFilter, Ordered {
 
         // 3.尝试获取用户信息
         List<String> authHeaders = exchange.getRequest().getHeaders().get(AUTHORIZATION_HEADER);
-        String token = authHeaders == null ? "" : authHeaders.get(0);
+        String token = (authHeaders == null)? "" : authHeaders.get(0);
         R<LoginUserDTO> r = authUtil.parseToken(token);
 
         // 4.如果用户是登录状态，尝试更新请求头，传递用户信息
+        //TODO 好好看看！
         if(r.success()){
             exchange.mutate()
                     .request(builder -> builder.header(USER_HEADER, r.getData().getUserId().toString()))

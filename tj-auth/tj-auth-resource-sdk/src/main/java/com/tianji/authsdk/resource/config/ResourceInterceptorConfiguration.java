@@ -10,6 +10,10 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistration
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+/**
+ * 注册了用户信息和登录拦截器。
+ * TODO 看看！浩渺！
+ */
 @Configuration
 @EnableConfigurationProperties(ResourceAuthProperties.class)
 public class ResourceInterceptorConfiguration implements WebMvcConfigurer {

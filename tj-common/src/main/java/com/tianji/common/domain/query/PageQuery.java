@@ -36,7 +36,7 @@ public class PageQuery {
         return (pageNo - 1) * pageSize;
     }
 
-    public <T> Page<T> toMpPage(OrderItem ... orderItems) {
+    public <T> Page<T> toMpPage(OrderItem ... orderItems) { //TODO 这是干嘛的？？
         Page<T> page = new Page<>(pageNo, pageSize);
         // 是否手动指定排序方式
         if (orderItems != null && orderItems.length > 0) {
@@ -56,7 +56,7 @@ public class PageQuery {
     }
 
     public <T> Page<T> toMpPage(String defaultSortBy, boolean isAsc) {
-        if (StringUtils.isBlank(sortBy)){
+        if (StringUtils.isBlank(sortBy)){ //如果创建该类时没有指定sortBy，则使用手动传的defaultSortBy！
             sortBy = defaultSortBy;
             this.isAsc = isAsc;
         }
@@ -67,6 +67,7 @@ public class PageQuery {
         page.addOrder(orderItem);
         return page;
     }
+
     public <T> Page<T> toMpPageDefaultSortByCreateTimeDesc() {
         return toMpPage(Constant.DATA_FIELD_NAME_CREATE_TIME, false);
     }
