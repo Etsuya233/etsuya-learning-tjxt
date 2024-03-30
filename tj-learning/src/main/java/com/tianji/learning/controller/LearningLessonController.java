@@ -4,13 +4,17 @@ package com.tianji.learning.controller;
 import com.tianji.common.domain.dto.PageDTO;
 import com.tianji.common.domain.query.PageQuery;
 import com.tianji.common.utils.UserContext;
+import com.tianji.learning.domain.dto.LearningPlanDTO;
 import com.tianji.learning.domain.po.LearningLesson;
 import com.tianji.learning.domain.vo.LearningLessonVO;
+import com.tianji.learning.domain.vo.LearningPlanPageVO;
 import com.tianji.learning.service.ILearningLessonService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import javax.validation.Valid;
 
 /**
  * <p>
@@ -63,4 +67,17 @@ public class LearningLessonController {
 	public Integer countLearningLessonByCourse(@PathVariable("courseId") Long courseId){
 		return learningLessonService.countLearningLessonByCourse(courseId);
 	}
+
+	@PostMapping("/plans")
+	@ApiOperation("创建学习计划")
+	public void createPlan(@RequestBody @Valid LearningPlanDTO plan){
+		learningLessonService.createPlan(plan);
+	}
+
+	@GetMapping("/plans")
+	@ApiOperation("查看学习计划")
+	public LearningPlanPageVO getPlan(PageQuery pageQuery){
+		return learningLessonService.getPlan(pageQuery);
+	}
+
 }

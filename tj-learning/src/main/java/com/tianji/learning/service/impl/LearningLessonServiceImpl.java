@@ -1,29 +1,43 @@
 package com.tianji.learning.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tianji.api.client.course.CatalogueClient;
 import com.tianji.api.client.course.CourseClient;
+import com.tianji.api.dto.IdAndNumDTO;
 import com.tianji.api.dto.course.CataSimpleInfoDTO;
 import com.tianji.api.dto.course.CourseFullInfoDTO;
 import com.tianji.api.dto.course.CourseSimpleInfoDTO;
 import com.tianji.common.domain.dto.PageDTO;
 import com.tianji.common.domain.query.PageQuery;
 import com.tianji.common.exceptions.BadRequestException;
+import com.tianji.common.exceptions.BizIllegalException;
+import com.tianji.common.exceptions.DbException;
 import com.tianji.common.utils.BeanUtils;
 import com.tianji.common.utils.CollUtils;
+import com.tianji.common.utils.DateUtils;
 import com.tianji.common.utils.UserContext;
+import com.tianji.learning.domain.dto.LearningPlanDTO;
 import com.tianji.learning.domain.po.LearningLesson;
+import com.tianji.learning.domain.po.LearningRecord;
 import com.tianji.learning.domain.vo.LearningLessonVO;
+import com.tianji.learning.domain.vo.LearningPlanPageVO;
+import com.tianji.learning.domain.vo.LearningPlanVO;
 import com.tianji.learning.enums.LessonStatus;
+import com.tianji.learning.enums.PlanStatus;
 import com.tianji.learning.mapper.LearningLessonMapper;
+import com.tianji.learning.mapper.LearningRecordMapper;
 import com.tianji.learning.service.ILearningLessonService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.tianji.learning.service.ILearningRecordService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +60,7 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
 
 	private final CourseClient courseClient;
 	private final CatalogueClient catalogueClient;
+	private final LearningRecordMapper learningRecordMapper;
 
 	@Override
 	@Transactional
@@ -163,6 +178,72 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
 		return this.lambdaQuery()
 				.eq(LearningLesson::getCourseId, courseId)
 				.count();
+	}
+
+	@Override
+	public void createPlan(LearningPlanDTO plan) {
+		Long userId = UserContext.getUser();
+		LearningLesson learningLesson = this.lambdaQuery()
+				.eq(LearningLesson::getUserId, userId)
+				.eq(LearningLesson::getCourseId, plan.getCourseId())
+				.one();
+		if(learningLesson == null) throw new BizIllegalException("课程不存在！");
+		boolean updated = this.lambdaUpdate()
+				.eq(LearningLesson::getId, learningLesson.getId())
+				.set(LearningLesson::getWeekFreq, plan.getFreq())
+				.set(LearningLesson::getPlanStatus, PlanStatus.PLAN_RUNNING)
+				.update();
+		if(!updated){
+			throw new DbException("学习计划创建失败！");
+		}
+	}
+
+	@Override
+	public LearningPlanPageVO getPlan(PageQuery pageQuery) {
+		LearningPlanPageVO learningPlanPageVO = new LearningPlanPageVO();
+		Long userId = UserContext.getUser();
+		LocalDate now = LocalDate.now();
+		LocalDateTime startOfWeek = DateUtils.getWeekBeginTime(now);
+		LocalDateTime endOfWeek = DateUtils.getWeekEndTime(now);
+		//本周学习实际学习小节
+		Integer weekCounts = learningRecordMapper.selectCount(new LambdaQueryWrapper<LearningRecord>()
+				.eq(LearningRecord::getUserId, userId)
+				.eq(LearningRecord::getFinished, true)
+				.gt(LearningRecord::getFinishTime, startOfWeek)
+				.lt(LearningRecord::getFinishTime, endOfWeek)
+		);
+		learningPlanPageVO.setWeekFinished(weekCounts);
+		//本周计划学习小节
+		Integer weekTotalPlan = this.getBaseMapper().queryWeekPlanCount(userId);
+		learningPlanPageVO.setWeekTotalPlan(weekTotalPlan);
+		//每节课的学习情况
+		List<IdAndNumDTO> idNumEntries = learningRecordMapper.countLearnedSections(userId, startOfWeek, endOfWeek);
+		Map<Long, Integer> countMap = idNumEntries.stream().collect(Collectors.toMap(IdAndNumDTO::getId, IdAndNumDTO::getNum));
+		Page<LearningLesson> pageResult = this.lambdaQuery()
+				.eq(LearningLesson::getUserId, userId)
+				.eq(LearningLesson::getPlanStatus, PlanStatus.PLAN_RUNNING)
+				.in(LearningLesson::getStatus, LessonStatus.NOT_BEGIN, LessonStatus.LEARNING)
+				.page(pageQuery.toMpPage("latest_learn_time", false));
+		List<LearningLesson> records = pageResult.getRecords();
+		//获取每节课的课程信息
+		List<Long> courseIds = records.stream().map(LearningLesson::getCourseId).collect(Collectors.toList());
+		Map<Long, CourseSimpleInfoDTO> courseMap = courseClient.getSimpleInfoList(courseIds)
+				.stream().collect(Collectors.toMap(CourseSimpleInfoDTO::getId, c -> c));
+		List<LearningPlanVO> list = records.stream().map(record -> {
+			//复制基本属性
+			LearningPlanVO learningPlanVO = BeanUtils.copyBean(record, LearningPlanVO.class);
+			//填写课程基本信息
+			CourseSimpleInfoDTO courseInfo = courseMap.get(record.getCourseId());
+			if(courseInfo == null){
+				throw new BizIllegalException("课程不存在！");
+			}
+			learningPlanVO.setCourseName(courseInfo.getName());
+			learningPlanVO.setSections(courseInfo.getSectionNum());
+			//本周已学习小节数
+			learningPlanVO.setWeekLearnedSections(countMap.getOrDefault(record.getId(), 0));
+			return learningPlanVO;
+		}).collect(Collectors.toList());
+		return learningPlanPageVO.pageInfo(pageResult.getTotal(), pageResult.getPages(), list);
 	}
 
 	private Map<Long, CourseSimpleInfoDTO> queryCourseSimpleInfoList(List<LearningLesson> records) {
