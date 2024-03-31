@@ -10,6 +10,7 @@ public interface MqConstants {
 
         /*学习有关的交换机*/
         String LEARNING_EXCHANGE = "learning.topic";
+        String LEARNING_DELAY_EXCHANGE = "learning.delay.topic";
 
         /*信息中心短信相关的交换机*/
         String SMS_EXCHANGE = "sms.direct";
@@ -29,6 +30,9 @@ public interface MqConstants {
         String ERROR_QUEUE_TEMPLATE = "error.{}.queue";
     }
     interface Key{
+        /*学习有关的Key*/
+        String LEARNING_RECORD_PUSH_KEY = "learning.record.push";
+
         /*课程有关的 RoutingKey*/
         String COURSE_NEW_KEY = "course.new";
         String COURSE_UP_KEY = "course.up";

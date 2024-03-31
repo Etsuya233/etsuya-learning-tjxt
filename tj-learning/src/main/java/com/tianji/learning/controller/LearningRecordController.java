@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/learning-records")
 @RequiredArgsConstructor
-@Api("学习记录接口")
+@Api(tags = "学习记录接口")
 public class LearningRecordController {
 
 	private final ILearningRecordService learningRecordService;
