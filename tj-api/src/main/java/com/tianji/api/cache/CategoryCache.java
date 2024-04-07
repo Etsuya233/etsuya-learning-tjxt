@@ -31,6 +31,11 @@ public class CategoryCache {
         });
     }
 
+    /**
+     * 通过三级id列表获取三级id名称
+     * @param ids 三级ID
+     * @return 字符串，三级ID对应名称
+     */
     public String getCategoryNames(List<Long> ids) {
         if (ids == null || ids.size() == 0) {
             return "";
