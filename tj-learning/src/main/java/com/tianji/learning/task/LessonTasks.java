@@ -15,7 +15,7 @@ public class LessonTasks {
 
 	private final ILearningLessonService learningLessonService;
 
-	@Scheduled(cron = "* 0,30 * * * *") //每30分钟
+	@Scheduled(cron = "0 0,30 * * * *") //每30分钟
 	public void detectExpireLessons(){
 		LocalDateTime now = LocalDateTime.now();
 		learningLessonService.lambdaUpdate()

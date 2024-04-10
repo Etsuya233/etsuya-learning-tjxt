@@ -77,7 +77,7 @@ public class SignRecordServiceImpl extends ServiceImpl<SignRecordMapper, SignRec
 		rabbitMqHelper.send(
 				MqConstants.Exchange.LEARNING_EXCHANGE,
 				MqConstants.Key.SIGN_IN,
-				SignInMessage.of(userId, rewardPoints + 1)
+				SignInMessage.of(userId, rewardPoints + 2)
 		);
 		//封装信息
 		SignResultVO vo = new SignResultVO();
@@ -102,7 +102,7 @@ public class SignRecordServiceImpl extends ServiceImpl<SignRecordMapper, SignRec
 		long auxNum = 1 << (now.getDayOfMonth() - 1);
 		ArrayList<Integer> records = new ArrayList<>();
 		for(int i = 0; i < now.getDayOfMonth(); i++){
-			records.add((int) (auxNum & bitmap));
+			records.add((auxNum & bitmap) > 0? 1 : 0); //1是已签到 0是未签到
 			auxNum >>= 1;
 		}
 		return records;

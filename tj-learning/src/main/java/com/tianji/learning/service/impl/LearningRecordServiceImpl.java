@@ -5,6 +5,7 @@ import com.tianji.api.dto.course.CourseFullInfoDTO;
 import com.tianji.api.dto.leanring.LearningLessonDTO;
 import com.tianji.api.dto.leanring.LearningRecordDTO;
 import com.tianji.api.dto.leanring.LearningRecordFormDTO;
+import com.tianji.common.autoconfigure.mq.RabbitMqHelper;
 import com.tianji.common.constants.MqConstants;
 import com.tianji.common.exceptions.BizIllegalException;
 import com.tianji.common.exceptions.DbException;
@@ -45,6 +46,7 @@ public class LearningRecordServiceImpl extends ServiceImpl<LearningRecordMapper,
 	private final CourseClient courseClient;
 	private final StringRedisTemplate redisTemplate;
 	private final RabbitTemplate rabbitTemplate;
+	private final RabbitMqHelper rabbitMqHelper;
 
 	@Override
 	public LearningLessonDTO queryLearningRecordByCourse(Long courseId) {
@@ -84,6 +86,15 @@ public class LearningRecordServiceImpl extends ServiceImpl<LearningRecordMapper,
 		}
 		//更新一下lesson
 		handleRecordUpdate(record, firstTimeFinished);
+		//添加积分
+		if(firstTimeFinished){
+			//添加积分
+			rabbitMqHelper.send(
+					MqConstants.Exchange.LEARNING_EXCHANGE,
+					MqConstants.Key.LEARN_SECTION,
+					UserContext.getUser()
+			);
+		}
 	}
 
 	private boolean handleVideoRecord(LearningRecordFormDTO record) {

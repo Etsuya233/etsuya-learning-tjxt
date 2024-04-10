@@ -2,17 +2,22 @@ package com.tianji.learning.service.impl;
 
 import cn.hutool.core.date.LocalDateTimeUtil;
 import com.tianji.common.utils.UserContext;
+import com.tianji.learning.constant.RedisConstant;
 import com.tianji.learning.domain.po.PointsRecord;
 import com.tianji.learning.domain.vo.PointsStatisticsVO;
 import com.tianji.learning.enums.PointsRecordType;
 import com.tianji.learning.mapper.PointsRecordMapper;
 import com.tianji.learning.service.IPointsRecordService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.cache.RedisCache;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -28,7 +33,10 @@ import java.util.stream.Collectors;
  */
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class PointsRecordServiceImpl extends ServiceImpl<PointsRecordMapper, PointsRecord> implements IPointsRecordService {
+
+	private final StringRedisTemplate redisTemplate;
 
 	@Override
 	public void addPointsRecord(Long userId, Integer points, PointsRecordType type) {
@@ -40,6 +48,7 @@ public class PointsRecordServiceImpl extends ServiceImpl<PointsRecordMapper, Poi
 		PointsRecord record = new PointsRecord();
 		record.setType(type);
 		record.setUserId(userId);
+		record.setPoints(points);
 		if(type.getMaxPoints() != 0){ //假如改积分是有上限的
 			LocalDateTime now = LocalDateTime.now();
 			LocalDateTime beginTime = LocalDateTimeUtil.beginOfDay(now);
@@ -62,6 +71,11 @@ public class PointsRecordServiceImpl extends ServiceImpl<PointsRecordMapper, Poi
 			}
 		} else record.setPoints(points);
 		this.save(record);
+		//添加积分到排行榜
+		if(record.getPoints() > 0){
+			String key = RedisConstant.POINT_BOARDS_KEY_PREFIX + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
+			redisTemplate.opsForZSet().incrementScore(key, userId.toString(), points);
+		}
 	}
 
 	@Override

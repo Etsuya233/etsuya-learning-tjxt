@@ -19,7 +19,7 @@ import lombok.experimental.Accessors;
 @Data
 @EqualsAndHashCode(callSuper = false)
 @Accessors(chain = true)
-@TableName("points_board")
+@TableName("points_board") //TODO 这张表不存在不会出错？
 public class PointsBoard implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -27,7 +27,7 @@ public class PointsBoard implements Serializable {
     /**
      * 榜单id
      */
-    @TableId(value = "id", type = IdType.ASSIGN_ID)
+    @TableId(value = "id", type = IdType.INPUT)
     private Long id;
 
     /**
@@ -39,16 +39,5 @@ public class PointsBoard implements Serializable {
      * 积分值
      */
     private Integer points;
-
-    /**
-     * 名次，只记录赛季前100
-     */
-    private Integer rank;
-
-    /**
-     * 赛季，例如 1,就是第一赛季，2-就是第二赛季
-     */
-    private Integer season;
-
 
 }

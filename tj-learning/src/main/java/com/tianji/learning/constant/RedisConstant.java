@@ -7,4 +7,6 @@ public class RedisConstant {
 	 * 每日签到。如：sign:uid:3457234:202301
 	 */
 	public static final String SIGN_RECORD_KET_PREFIX = "sign:uid:";
+
+	public static final String POINT_BOARDS_KEY_PREFIX = "boards:";
 }

@@ -6,6 +6,8 @@ import com.tianji.api.client.remark.RemarkClient;
 import com.tianji.api.client.user.UserClient;
 import com.tianji.api.dto.remark.LikedTimesDTO;
 import com.tianji.api.dto.user.UserDTO;
+import com.tianji.common.autoconfigure.mq.RabbitMqHelper;
+import com.tianji.common.constants.MqConstants;
 import com.tianji.common.domain.dto.PageDTO;
 import com.tianji.common.exceptions.BizIllegalException;
 import com.tianji.common.exceptions.DbException;
@@ -37,6 +39,7 @@ public class InteractiveReplyRedisServiceImpl extends ServiceImpl<InteractionRep
 	private final IInteractionQuestionService interactionQuestionService;
 	private final UserClient userClient;
 	private final RemarkClient remarkClient;
+	private final RabbitMqHelper rabbitMqHelper;
 
 	@Override
 	public void postReply(ReplyDTO replyDTO) {

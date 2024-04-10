@@ -13,6 +13,8 @@ import com.tianji.api.dto.course.CourseFullInfoDTO;
 import com.tianji.api.dto.course.CourseSimpleInfoDTO;
 import com.tianji.api.dto.course.SubNumAndCourseNumDTO;
 import com.tianji.api.dto.user.UserDTO;
+import com.tianji.common.autoconfigure.mq.RabbitMqHelper;
+import com.tianji.common.constants.MqConstants;
 import com.tianji.common.domain.dto.PageDTO;
 import com.tianji.common.exceptions.BadRequestException;
 import com.tianji.common.exceptions.BizIllegalException;
@@ -56,6 +58,7 @@ public class InteractionQuestionServiceImpl extends ServiceImpl<InteractionQuest
 	private final CourseClient courseClient;
 	private final CatalogueClient catalogueClient;
 	private final CategoryCache categoryCache;
+	private final RabbitMqHelper rabbitMqHelper;
 
 	@Override
 	public void submitQuestion(QuestionFormDTO dto) {
