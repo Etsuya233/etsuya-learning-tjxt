@@ -16,4 +16,11 @@
             ENGINE = InnoDB
             ROW_FORMAT = DYNAMIC
     </insert>
+
+    <select id="queryHistoryPointsBoard" resultType="com.tianji.learning.domain.po.PointsBoard">
+        select * from `${tableName}` limit #{from}, #{limit}
+    </select>
+    <select id="queryHistoryBoardInfoByUserId" resultType="com.tianji.learning.domain.po.PointsBoard">
+        select * from `${tableName}` where user_id = #{userId}
+    </select>
 </mapper>

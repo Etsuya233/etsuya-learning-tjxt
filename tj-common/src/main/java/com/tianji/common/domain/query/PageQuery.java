@@ -36,7 +36,7 @@ public class PageQuery {
         return (pageNo - 1) * pageSize;
     }
 
-    public <T> Page<T> toMpPage(OrderItem ... orderItems) { //TODO 这是干嘛的？？
+    public <T> Page<T> toMpPage(OrderItem ... orderItems) {
         Page<T> page = new Page<>(pageNo, pageSize);
         // 是否手动指定排序方式
         if (orderItems != null && orderItems.length > 0) {

@@ -110,6 +110,37 @@ public class PointsBoardServiceImpl extends ServiceImpl<PointsBoardMapper, Point
 	}
 
 	private PointsBoardVO getBoardHistory(PointsBoardQuery pointsBoardQuery) {
-		return null;
+		//基本信息
+		String tableName = LearningConstant.POINTS_BOARD_DB_PREFIX + pointsBoardQuery.getSeason();
+		Long userId = UserContext.getUser();
+		//分页查询排行榜
+		Integer from = (pointsBoardQuery.getPageNo() - 1) * pointsBoardQuery.getPageSize();
+		Integer limit = pointsBoardQuery.getPageSize();
+		List<PointsBoard> list =  getBaseMapper().queryHistoryPointsBoard(tableName, from, limit);
+		//查询排行榜用户信息
+		List<Long> userIds = list.stream()
+				.map(PointsBoard::getUserId)
+				.collect(Collectors.toList());
+		List<UserDTO> userDtos = userClient.queryUserByIds(userIds);
+		Map<Long, UserDTO> userMap = userDtos.stream()
+				.collect(Collectors.toMap(UserDTO::getId, Function.identity()));
+		//查询我的排名
+		PointsBoard my = getBaseMapper().queryHistoryBoardInfoByUserId(tableName, userId);
+		//封装数据
+		PointsBoardVO vo = new PointsBoardVO();
+		vo.setRank(Math.toIntExact(my.getId()));
+		vo.setPoints(my.getPoints());
+		List<PointsBoardItemVO> boardList = list.stream().map(p -> {
+			PointsBoardItemVO itemVO = new PointsBoardItemVO();
+			itemVO.setPoints(p.getPoints());
+			UserDTO user = userMap.get(p.getUserId());
+			if (user != null) {
+				itemVO.setName(userMap.get(p.getUserId()).getName());
+			}
+			itemVO.setRank(Math.toIntExact(p.getId()));
+			return itemVO;
+		}).collect(Collectors.toList());
+		vo.setBoardList(boardList);
+		return vo;
 	}
 }
