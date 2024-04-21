@@ -61,13 +61,14 @@ public class LockAspect {
     }
 
     /**
-     * SPEL的正则规则
+     * SPEL的正则规则, 匹配的是形如 #{} 的字符串，
      */
     private static final Pattern pattern = Pattern.compile("\\#\\{([^\\}]*)\\}");
     /**
      * 方法参数解析器
      */
     private static final ParameterNameDiscoverer parameterNameDiscoverer = new DefaultParameterNameDiscoverer();
+
 
     /**
      * 解析锁名称
@@ -81,19 +82,22 @@ public class LockAspect {
             // 不存在，直接返回
             return name;
         }
-        // 2.构建context
+        // 2.构建context,也就是SPEL表达式获取参数的上下文环境，这里上下文就是切入点的参数列表
         EvaluationContext context = new MethodBasedEvaluationContext(
                 TypedValue.NULL, resolveMethod(pjp), pjp.getArgs(), parameterNameDiscoverer);
-        // 3.构建解析器
+        // 3.构建SPEL解析器
         ExpressionParser parser = new SpelExpressionParser();
-        // 3.循环处理
+        // 4.循环处理，因为表达式中可以包含多个表达式
         Matcher matcher = pattern.matcher(name);
         while (matcher.find()) {
-            // 2.1.获取表达式
+            // 4.1.获取表达式
             String tmp = matcher.group();
-            // 2.2.尝试解析
-            Expression expression = parser.parseExpression("#" + matcher.group(1));
+            String group = matcher.group(1);
+            // 4.2.这里要判断表达式是否以 T字符开头，这种属于解析静态方法，不走上下文
+            Expression expression = parser.parseExpression(group.charAt(0) == 'T' ? group : "#" + group);
+            // 4.3.解析出表达式对应的值
             Object value = expression.getValue(context);
+            // 4.4.用值替换锁名称中的SPEL表达式
             name = name.replace(tmp, ObjectUtils.nullSafeToString(value));
         }
         return name;

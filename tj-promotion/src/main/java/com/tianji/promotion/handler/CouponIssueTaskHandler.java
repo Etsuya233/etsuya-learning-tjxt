@@ -21,18 +21,24 @@ public class CouponIssueTaskHandler {
 
 	@XxlJob("couponIssueJobHandler")
 	public void couponStartIssueTask(){
-		// 1.获取分片信息，作为页码，每页最多查询 20条
 		int index = XxlJobHelper.getShardIndex() + 1;
 		int size = Integer.parseInt(XxlJobHelper.getJobParam());
 		// 2.查询<<未开始>>的优惠券
 		Page<Coupon> page = couponService.lambdaQuery()
 				.eq(Coupon::getStatus, CouponStatus.UN_ISSUE)
-				.le(Coupon::getIssueBeginTime, LocalDateTime.now())
+				.lt(Coupon::getIssueBeginTime, LocalDateTime.now())
+				.gt(Coupon::getIssueEndTime, LocalDateTime.now())
 				.page(new Page<>(index, size));
 		// 3.发放优惠券
 		List<Coupon> records = page.getRecords();
 		if (CollUtils.isEmpty(records)) {
 			return;
+		}
+		//4，等待其他分片获取数据
+		try {
+			Thread.sleep(10000);
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
 		}
 		couponService.beginIssueBatch(records);
 	}
@@ -42,17 +48,24 @@ public class CouponIssueTaskHandler {
 		// 1.获取分片信息，作为页码，每页最多查询 20条
 		int index = XxlJobHelper.getShardIndex() + 1;
 		int size = Integer.parseInt(XxlJobHelper.getJobParam());
-		// 2.查询<<未开始>>的优惠券
+		// 2.查询派发中的优惠券
 		Page<Coupon> page = couponService.lambdaQuery()
 				.eq(Coupon::getStatus, CouponStatus.ISSUING)
 				.le(Coupon::getIssueEndTime, LocalDateTime.now())
 				.page(new Page<>(index, size));
-		// 3.发放优惠券
+		// 3.停止发放优惠券
 		List<Coupon> records = page.getRecords();
 		if (CollUtils.isEmpty(records)) {
 			return;
 		}
+		try {
+			Thread.sleep(10000);
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
 		couponService.stopIssueBatch(records);
 	}
+
+
 
 }

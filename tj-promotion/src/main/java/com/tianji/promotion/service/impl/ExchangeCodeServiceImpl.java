@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -37,9 +38,11 @@ import java.util.stream.Collectors;
 public class ExchangeCodeServiceImpl extends ServiceImpl<ExchangeCodeMapper, ExchangeCode> implements IExchangeCodeService {
 
 	private final BoundValueOperations<String, String> valueOps;
+	private final StringRedisTemplate redisTemplate;
 
 	public ExchangeCodeServiceImpl(StringRedisTemplate redisTemplate) {
 		this.valueOps = redisTemplate.boundValueOps(PromotionConstant.COUPON_CODE_SERIAL_KEY_REDIS);
+		this.redisTemplate = redisTemplate;
 	}
 
 	@Override
@@ -69,8 +72,7 @@ public class ExchangeCodeServiceImpl extends ServiceImpl<ExchangeCodeMapper, Exc
 		}
 		saveBatch(list);
 
-//		//TODO 4.写入Redis缓存，member：couponId，score：兑换码的最大序列号
-//		redisTemplate.opsForZSet().add(COUPON_RANGE_KEY, coupon.getId().toString(), maxSerialNum);
+		redisTemplate.opsForZSet().add(PromotionConstant.COUPON_RANGE_KEY, coupon.getId().toString(), serialNumber + total);
 	}
 
 	@Override
@@ -85,5 +87,28 @@ public class ExchangeCodeServiceImpl extends ServiceImpl<ExchangeCodeMapper, Exc
 		//封装
 		List<CodeVO> list = records.stream().map(CodeVO::cast2CodeVO).collect(Collectors.toList());
 		return PageDTO.of(pageResult, list);
+	}
+
+	/**
+	 * 设置该优惠券码被使用，也可以判断该有兑换码是否被使用。
+	 * @param serialNumber 序列号
+	 * @return true表示该兑换码没被使用，否则被使用了
+	 */
+	@Override
+	public boolean updateExchangeCodeStatus(long serialNumber, boolean status) {
+		Boolean b = redisTemplate.opsForValue().setBit(PromotionConstant.COUPON_CODE_MAP_KEY, serialNumber, status);
+		return b != null && (!b == status);
+	}
+
+	@Override
+	public Long getCouponIdBySerialNumber(long serialNumber) {
+		Set<String> results = redisTemplate.opsForZSet().rangeByScore(
+				PromotionConstant.COUPON_RANGE_KEY, serialNumber, 0x7fffffff, 0L, 1L);
+		if (CollUtils.isEmpty(results)) {
+			return null;
+		}
+		// 2.数据转换
+		String next = results.iterator().next();
+		return Long.parseLong(next);
 	}
 }

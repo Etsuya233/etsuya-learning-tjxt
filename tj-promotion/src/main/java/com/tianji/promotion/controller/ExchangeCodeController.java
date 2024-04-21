@@ -6,6 +6,7 @@ import com.tianji.promotion.domain.po.ExchangeCode;
 import com.tianji.promotion.domain.query.CodeQuery;
 import com.tianji.promotion.domain.vo.CodeVO;
 import com.tianji.promotion.service.IExchangeCodeService;
+import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/codes")
 @RequiredArgsConstructor
+@Api(tags = "兑换码相关接口")
 public class ExchangeCodeController {
 
 	private final IExchangeCodeService exchangeCodeService;
