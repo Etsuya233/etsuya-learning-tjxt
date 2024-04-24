@@ -14,6 +14,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import javax.servlet.Filter;
 
+//TODO 有点乱？？
 @ConditionalOnClass({CommonExceptionAdvice.class, Filter.class})
 @Configuration
 public class MvcConfig implements WebMvcConfigurer {

@@ -171,4 +171,19 @@ public class UserCouponServiceRedisImpl extends ServiceImpl<UserCouponMapper, Us
 				.collect(Collectors.toList());
 		return PageDTO.of(pageResult, list);
 	}
+
+	@Override
+	public void useCoupon(List<Long> couponIds) {
+
+	}
+
+	@Override
+	public void refundCoupon(List<Long> couponIds) {
+
+	}
+
+	@Override
+	public List<String> queryCouponRules(List<Long> userCouponIds) {
+		return List.of();
+	}
 }

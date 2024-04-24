@@ -26,6 +26,8 @@ spring:
             refresh: false
           - data-id: shared-mq.yaml
             refresh: false
+          - data-id: shared-seata.yaml
+            refresh: false
 tj:
   swagger:
     enable: true

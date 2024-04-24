@@ -2,4 +2,14 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.tianji.promotion.mapper.UserCouponMapper">
 
+    <!--查询的结果大部分都是Coupon中的字段，因此可以用Coupon对象接收。
+    不过UserCoupon的id也需要返回，我们计划用Coupon的creater字段来接收，
+    因此查询时需要将UserCoupon的id起别名为creater-->
+    <select id="queryMyCoupon" resultType="com.tianji.promotion.domain.po.Coupon"
+            parameterType="java.lang.Long">
+        select coupon.*, user_coupon.id as 'creater'
+        from user_coupon left join coupon on user_coupon.coupon_id = coupon.id
+        where user_coupon.user_id = #{user_id}
+          and user_coupon.status = 1
+    </select>
 </mapper>

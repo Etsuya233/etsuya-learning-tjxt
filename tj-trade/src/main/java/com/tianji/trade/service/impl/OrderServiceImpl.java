@@ -1,11 +1,16 @@
 package com.tianji.trade.service.impl;
 
+import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tianji.api.client.course.CourseClient;
+import com.tianji.api.client.promotion.PromotionClient;
 import com.tianji.api.constants.CourseStatus;
 import com.tianji.api.dto.course.CourseSimpleInfoDTO;
+import com.tianji.api.dto.promotion.CouponDiscountDTO;
+import com.tianji.api.dto.promotion.OrderCouponDTO;
+import com.tianji.api.dto.promotion.OrderCourseDTO;
 import com.tianji.api.dto.trade.OrderBasicDTO;
 import com.tianji.common.autoconfigure.mq.RabbitMqHelper;
 import com.tianji.common.constants.MqConstants;
@@ -30,6 +35,8 @@ import com.tianji.trade.mapper.OrderMapper;
 import com.tianji.trade.service.ICartService;
 import com.tianji.trade.service.IOrderDetailService;
 import com.tianji.trade.service.IOrderService;
+import io.seata.spring.annotation.GlobalTransactionScanner;
+import io.seata.spring.annotation.GlobalTransactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -61,9 +68,11 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
     private final ICartService cartService;
     private final TradeProperties tradeProperties;
     private final RabbitMqHelper rabbitMqHelper;
+    private final PromotionClient promotionClient;
+    private final GlobalTransactionScanner globalTransactionScanner;
 
     @Override
-    @Transactional
+    @GlobalTransactional
     public PlaceOrderResultVO placeOrder(PlaceOrderDTO placeOrderDTO) {
         Long userId = UserContext.getUser();
         // 1.查询课程费用信息，如果不可购买，这里直接报错
@@ -73,15 +82,27 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         // 2.1.计算订单金额
         Integer totalAmount = courseInfos.stream()
                 .map(CourseSimpleInfoDTO::getPrice).reduce(Integer::sum).orElse(0);
-        // TODO 2.2.计算优惠金额
-        order.setDiscountAmount(0);
-        Integer realAmount = totalAmount - order.getDiscountAmount();
+        // 2.2.计算优惠金额
+        OrderCouponDTO orderCouponDTO = new OrderCouponDTO();
+        orderCouponDTO.setUserCouponIds(placeOrderDTO.getCouponIds());
+        List<OrderCourseDTO> orderCourseList = courseInfos.stream().map(i -> {
+            OrderCourseDTO orderCourseDTO = new OrderCourseDTO();
+            orderCourseDTO.setId(i.getId());
+            orderCourseDTO.setPrice(i.getPrice());
+            orderCourseDTO.setCateId(i.getThirdCateId());
+            return orderCourseDTO;
+        }).collect(Collectors.toList());
+        orderCouponDTO.setCourseList(orderCourseList);
+        CouponDiscountDTO couponDiscount = promotionClient.queryDiscountByOrder(orderCouponDTO);
+
         // 2.3.封装其它信息
         order.setUserId(userId);
         order.setTotalAmount(totalAmount);
-        order.setRealAmount(realAmount);
         order.setStatus(OrderStatus.NO_PAY.getValue());
         order.setMessage(OrderStatus.NO_PAY.getProgressName());
+        order.setDiscountAmount(couponDiscount == null? 0: couponDiscount.getDiscountAmount());
+        Integer realAmount = totalAmount - (couponDiscount == null ? 0 : couponDiscount.getDiscountAmount());
+        order.setRealAmount(realAmount);
         // 2.4.订单id
         Long orderId = placeOrderDTO.getOrderId();
         order.setId(orderId);
@@ -89,7 +110,9 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         // 3.封装订单详情
         List<OrderDetail> orderDetails = new ArrayList<>(courseInfos.size());
         for (CourseSimpleInfoDTO courseInfo : courseInfos) {
-            orderDetails.add(packageOrderDetail(courseInfo, order));
+            int discountAmount = couponDiscount == null? 0:
+                    couponDiscount.getDiscountDetail().getOrDefault(courseInfo.getId(), 0);
+            orderDetails.add(packageOrderDetail(courseInfo, order, discountAmount));
         }
 
         // 4.写入数据库
@@ -97,6 +120,9 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
 
         // 5.删除购物车数据
         cartService.deleteCartByUserAndCourseIds(userId, placeOrderDTO.getCourseIds());
+
+        // 5.5 核销优惠券
+        promotionClient.useCoupon(placeOrderDTO.getCouponIds());
 
         // 6.构建下单结果
         return PlaceOrderResultVO.builder()
@@ -157,7 +183,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         order.setId(orderId);
 
         // 3.订单详情
-        OrderDetail detail = packageOrderDetail(courseInfo, order);
+        OrderDetail detail = packageOrderDetail(courseInfo, order, 0);
 
         // 4.写入数据库
         saveOrderAndDetails(order, CollUtils.singletonList(detail));
@@ -192,6 +218,15 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         // 2.计算总价
         int total = courseInfos.stream().mapToInt(CourseSimpleInfoDTO::getPrice).sum();
         // TODO 3.计算折扣
+//        List<OrderCourseDTO> orderCourseDtos = courseInfos.stream().map(c -> {
+//            OrderCourseDTO orderCourseDTO = new OrderCourseDTO();
+//            orderCourseDTO.setId(c.getId());
+//            orderCourseDTO.setCateId(c.getThirdCateId());
+//            orderCourseDTO.setPrice(c.getPrice());
+//            return orderCourseDTO;
+//        }).collect(Collectors.toList());
+//        List<CouponDiscountDTO> discountSolution = promotionClient.findDiscountSolution(orderCourseDtos);
+//
         int discountAmount = 0;
         // 4.生成订单id
         long orderId = IdWorker.getId();
@@ -201,10 +236,11 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         vo.setTotalAmount(total);
         vo.setDiscountAmount(discountAmount);
         vo.setCourses(courses);
+
         return vo;
     }
 
-    private OrderDetail packageOrderDetail(CourseSimpleInfoDTO courseInfo, Order order) {
+    private OrderDetail packageOrderDetail(CourseSimpleInfoDTO courseInfo, Order order, int discountAmount) {
         OrderDetail detail = new OrderDetail();
         detail.setUserId(order.getUserId());
         detail.setOrderId(order.getId());
@@ -214,7 +250,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         detail.setCoverUrl(courseInfo.getCoverUrl());
         detail.setName(courseInfo.getName());
         detail.setValidDuration(courseInfo.getValidDuration());
-        detail.setDiscountAmount(0);// TODO 计算优惠金额
+        detail.setDiscountAmount(discountAmount);
         detail.setRealPayAmount(courseInfo.getPrice() - detail.getDiscountAmount());
         return detail;
     }
@@ -239,7 +275,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
     }
 
     @Override
-    @Transactional
+    @GlobalTransactional
     public void cancelOrder(Long orderId) {
         Long userId = UserContext.getUser();
         // 1.查询订单
@@ -269,6 +305,8 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         }
         // 5.更新订单条目的状态
         detailService.updateStatusByOrderId(orderId, OrderStatus.CLOSED.getValue());
+        // 6.退回优惠券
+        promotionClient.refundCoupon(order.getCouponIds());
     }
 
     @Override
@@ -349,6 +387,9 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         vo.setDetails(dvs);
         // 3.3.订单进度
         vo.setProgressNodes(detailService.packageProgressNodes(order, null));
+        // 3.4 查询优惠券使用情况
+        List<String> couponInfo = promotionClient.queryCouponRules(order.getCouponIds());
+        vo.setCouponDesc(StrUtil.join("/", couponInfo));
         return vo;
     }
 

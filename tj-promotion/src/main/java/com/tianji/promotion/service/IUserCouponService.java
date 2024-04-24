@@ -6,6 +6,8 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.tianji.promotion.domain.query.UserCouponQuery;
 import com.tianji.promotion.domain.vo.CouponVO;
 
+import java.util.List;
+
 /**
  * <p>
  * 用户领取优惠券的记录，是真正使用的优惠券信息 服务类
@@ -23,4 +25,10 @@ public interface IUserCouponService extends IService<UserCoupon> {
 	void obtainCouponById(Long couponId, Long userId);
 
 	PageDTO<CouponVO> pageQueryMyCoupon(UserCouponQuery couponQuery);
+
+	void useCoupon(List<Long> couponIds);
+
+	void refundCoupon(List<Long> couponIds);
+
+	List<String> queryCouponRules(List<Long> userCouponIds);
 }
