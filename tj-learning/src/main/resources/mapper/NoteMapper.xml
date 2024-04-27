@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tianji.learning.mapper.NoteMapper">
+
+    <select id="adminPageQuery" resultType="com.tianji.learning.domain.po.Note">
+        select *
+        from note
+        where hidden = #{hidden}
+        and is_gathered = false
+        and create_time &gt; #{beginTime}
+        and create_time &lt; #{endTime}
+        and id in
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </select>
+</mapper>

@@ -9,7 +9,7 @@ import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-/**
+/**promotion
  * <p>
  * 学习记录表 前端控制器
  * </p>
